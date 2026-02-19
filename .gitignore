@@ -1,0 +1,6 @@
+# Larva runtime state
+.larvae/
+shared-workspace/
+
+# OS
+.DS_Store
