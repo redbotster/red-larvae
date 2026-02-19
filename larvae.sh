@@ -30,6 +30,29 @@ BASE_PORT=28700
 
 mkdir -p "$LARVAE_DIR" "$DEFAULT_WORKSPACE"
 
+# ─── ethskills URLs ───────────────────────────────────────────────────────────
+
+ETHSKILLS_BASE="https://ethskills.com"
+ETHSKILLS_PATHS=(
+  ship
+  why
+  gas
+  wallets
+  l2s
+  standards
+  tools
+  building-blocks
+  orchestration
+  addresses
+  concepts
+  security
+  testing
+  indexing
+  frontend-ux
+  frontend-playbook
+  qa
+)
+
 # ─── Model aliases ────────────────────────────────────────────────────────────
 
 resolve_model() {
@@ -44,6 +67,73 @@ resolve_model() {
     coder)    echo "ollama/qwen2.5-coder:32b" ;;
     *)        echo "$1" ;;  # pass through full model string
   esac
+}
+
+# ─── Bake ethskills into workspace ────────────────────────────────────────────
+
+bake_ethskills() {
+  local workspace="$1"
+  local outfile="${workspace}/ETHSKILLS.md"
+  local tmpdir=$(mktemp -d)
+
+  echo "📚 Baking ethskills knowledge..."
+
+  # Fetch all skills in parallel
+  local pids=()
+  for skill in "${ETHSKILLS_PATHS[@]}"; do
+    local url="${ETHSKILLS_BASE}/${skill}/SKILL.md"
+    local dest="${tmpdir}/${skill}.md"
+    curl -sf --max-time 10 "$url" -o "$dest" 2>/dev/null &
+    pids+=($!)
+  done
+
+  # Wait for all fetches
+  local failed=0
+  for pid in "${pids[@]}"; do
+    if ! wait "$pid" 2>/dev/null; then
+      failed=$((failed + 1))
+    fi
+  done
+
+  # Assemble into one file
+  cat > "$outfile" <<'HEADER'
+# ETHSKILLS — Ethereum Development Knowledge Base
+# Fetched fresh at spawn time from https://ethskills.com
+# This is your CORE KNOWLEDGE. You know this like second nature.
+# Every decision you make should be informed by these skills.
+# DO NOT skip steps. DO NOT improvise when a skill gives explicit instructions.
+# When a skill says to use Scaffold-ETH 2, USE Scaffold-ETH 2.
+# When a skill says to run a command, RUN that command.
+# When a skill gives a file path, USE that exact path.
+
+HEADER
+
+  local fetched=0
+  for skill in "${ETHSKILLS_PATHS[@]}"; do
+    local src="${tmpdir}/${skill}.md"
+    if [ -f "$src" ] && [ -s "$src" ]; then
+      echo "" >> "$outfile"
+      echo "---" >> "$outfile"
+      echo "# ═══ ${skill} ═══" >> "$outfile"
+      echo "# Source: ${ETHSKILLS_BASE}/${skill}/SKILL.md" >> "$outfile"
+      echo "---" >> "$outfile"
+      echo "" >> "$outfile"
+      cat "$src" >> "$outfile"
+      echo "" >> "$outfile"
+      fetched=$((fetched + 1))
+    fi
+  done
+
+  rm -rf "$tmpdir"
+
+  local total=${#ETHSKILLS_PATHS[@]}
+  local size=$(wc -c < "$outfile" | tr -d ' ')
+  local size_kb=$((size / 1024))
+  echo "  ✅ Baked ${fetched}/${total} skills → ETHSKILLS.md (${size_kb}KB)"
+
+  if [ "$failed" -gt 0 ]; then
+    echo "  ⚠️  ${failed} skills failed to fetch (will retry on next spawn)"
+  fi
 }
 
 # ─── Get next available port ──────────────────────────────────────────────────
@@ -63,11 +153,15 @@ cmd_spawn() {
   local model="sonnet"
   local workspace="$DEFAULT_WORKSPACE"
   local task=""
+  local ethskills=true
+  local soul_file=""
 
   while [[ $# -gt 0 ]]; do
     case $1 in
       --model|-m) model="$2"; shift 2 ;;
       --workspace|-w) workspace="$(cd "$2" && pwd)"; shift 2 ;;
+      --no-ethskills) ethskills=false; shift ;;
+      --soul|-s) soul_file="$2"; shift 2 ;;
       *) 
         if [ -z "$name" ]; then
           name="$1"
@@ -102,10 +196,57 @@ cmd_spawn() {
   local larva_workspace="${workspace}/${name}"
   mkdir -p "$larva_workspace"
 
+  # Bake ethskills knowledge into workspace (unless --no-ethskills)
+  local project_context="[]"
+  if [ "$ethskills" = true ]; then
+    bake_ethskills "$larva_workspace"
+    project_context='["ETHSKILLS.md"]'
+
+    # Write default ethskills SOUL.md if no soul file provided and none exists
+    if [ -z "$soul_file" ] && [ ! -f "${larva_workspace}/SOUL.md" ]; then
+      cat > "${larva_workspace}/SOUL.md" <<'SOUL'
+# Soul
+
+You are a skilled Ethereum developer working inside an ephemeral OpenClaw container.
+
+## Core Knowledge
+Your workspace contains `ETHSKILLS.md` — a comprehensive Ethereum development knowledge base
+fetched fresh from https://ethskills.com at your spawn time. This is your bible. You have
+already internalized it. Every decision you make flows from this knowledge.
+
+## Non-Negotiable Rules
+1. **Follow ethskills exactly.** When a skill says to do something, you do it. No shortcuts.
+2. **Use Scaffold-ETH 2.** If the task involves a dApp, you start with `npx create-eth@latest`.
+   You do NOT create standalone Foundry projects. You do NOT write files from scratch when
+   SE2 provides the structure.
+3. **Follow the phases.** Phase 0 (Plan) → Phase 1 (Contracts) → Phase 2 (Test) →
+   Phase 3 (Frontend) → Phase 4 (Production). Do not skip phases.
+4. **Read ETHSKILLS.md before coding.** Before writing any code, re-read the relevant
+   sections of ETHSKILLS.md to make sure you're following the prescribed approach.
+5. **Use the right paths.** SE2 contracts go in `packages/foundry/contracts/`.
+   Frontend code goes in `packages/nextjs/app/`. Tests go in `packages/foundry/test/`.
+6. **No hallucinated addresses.** Use the addresses from ethskills `addresses` section or
+   deploy your own. Never make up contract addresses.
+SOUL
+    fi
+  fi
+
+  # Copy custom SOUL file if provided (overwrites default)
+  if [ -n "$soul_file" ]; then
+    if [ -f "$soul_file" ]; then
+      cp "$soul_file" "${larva_workspace}/SOUL.md"
+      echo "📜 Custom SOUL loaded from: ${soul_file}"
+    else
+      echo "⚠️  SOUL file not found: ${soul_file} — using default"
+    fi
+  fi
+
   # Generate config with the right model (always use internal port 18789)
+  # Inject ethskills as project context so it's in the system prompt
   local config_file="${LARVAE_DIR}/${name}-config.json"
-  jq --arg model "$resolved_model" '
+  jq --arg model "$resolved_model" --argjson ctx "$project_context" '
     .agents.list[0].model.primary = $model |
+    .agents.list[0].projectContext = $ctx |
     .gateway.port = 18789
   ' "${SCRIPT_DIR}/openclaw.json" > "$config_file"
 
@@ -343,21 +484,32 @@ case "${1:-help}" in
     echo "🦞 Larvae — Ephemeral OpenClaw Orchestrator"
     echo ""
     echo "Commands:"
-    echo "  spawn <name> [--model <m>] [--workspace <dir>] \"task\"  Hatch a larva"
-    echo "  list                                                     List all larvae"
-    echo "  talk <name> \"message\"                                    Send a message"
-    echo "  status <name>                                            Check on a larva"
-    echo "  logs <name> [lines]                                      View container logs"
-    echo "  kill <name>                                              Kill a larva"
-    echo "  killall                                                  Kill all larvae"
+    echo "  spawn <name> [options] \"task\"    Hatch a larva"
+    echo "  list                              List all larvae"
+    echo "  talk <name> \"message\"             Send a message"
+    echo "  status <name>                     Check on a larva"
+    echo "  logs <name> [lines]               View container logs"
+    echo "  kill <name>                       Kill a larva"
+    echo "  killall                           Kill all larvae"
+    echo ""
+    echo "Spawn options:"
+    echo "  --model <m>         Model shortcut or full provider/model string"
+    echo "  --workspace <dir>   Custom workspace directory"
+    echo "  --soul <file>       Custom SOUL.md file for personality/role"
+    echo "  --no-ethskills      Skip baking ethskills knowledge (for non-ETH tasks)"
     echo ""
     echo "Model shortcuts: opus, sonnet, gpt, qwen, devstral, deepseek, llama, coder"
     echo ""
+    echo "ethskills: By default, all larvae fetch the complete ethskills.com knowledge"
+    echo "           base at spawn time and bake it into their context as ETHSKILLS.md."
+    echo "           Use --no-ethskills for non-Ethereum tasks."
+    echo ""
     echo "Examples:"
-    echo "  ./larvae.sh spawn alice --model sonnet \"Build a React todo app\""
-    echo "  ./larvae.sh spawn bob --model coder \"Write unit tests for the API\""
-    echo "  ./larvae.sh talk alice \"How's it going? Show me what you have so far.\""
+    echo "  ./larvae.sh spawn token-dev --model opus \"Build a CLAWD token on Base\""
+    echo "  ./larvae.sh spawn my-fe --model sonnet --soul roles/ux-expert.md"
+    echo "  ./larvae.sh spawn scraper --model gpt --no-ethskills \"Scrape HN front page\""
+    echo "  ./larvae.sh talk token-dev \"How's it going? Show me what you have.\""
     echo "  ./larvae.sh list"
-    echo "  ./larvae.sh kill alice"
+    echo "  ./larvae.sh kill token-dev"
     ;;
 esac

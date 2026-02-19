@@ -94,10 +94,38 @@ Use any model — cloud APIs or local Ollama:
 ./larvae.sh spawn custom --model anthropic/claude-sonnet-4-5 "Do something"
 ```
 
+## ethskills Integration 🧠
+
+By default, every larva **fetches the complete [ethskills.com](https://ethskills.com) knowledge base at spawn time** and bakes it into its context. This means the larva doesn't just know about Ethereum — it has internalized ethskills as core knowledge before it ever processes your first command.
+
+**What happens at spawn:**
+1. All 17 ethskills SKILL.md files are fetched in parallel (~190KB total)
+2. They're assembled into `ETHSKILLS.md` in the larva's workspace
+3. `ETHSKILLS.md` is injected into the agent's system prompt via `projectContext`
+4. A default SOUL.md is written with non-negotiable rules to follow ethskills exactly
+
+The result: the larva uses Scaffold-ETH 2, follows the phase system, uses the correct file paths, and doesn't improvise when ethskills gives explicit instructions.
+
+```bash
+# Default: ethskills baked in
+./larvae.sh spawn token-dev --model opus "Build a CLAWD token hub dApp on Base"
+
+# Custom SOUL on top of ethskills
+./larvae.sh spawn my-dev --model sonnet --soul roles/security-auditor.md
+
+# Non-ETH tasks: skip ethskills
+./larvae.sh spawn scraper --model gpt --no-ethskills "Scrape Hacker News"
+```
+
 ## Commands
 
 ```bash
-./larvae.sh spawn <name> [--model <m>] [--workspace <dir>] "task"
+./larvae.sh spawn <name> [options] "task"
+  --model <m>         Model shortcut or full provider/model string
+  --workspace <dir>   Custom workspace directory
+  --soul <file>       Custom SOUL.md for personality/role
+  --no-ethskills      Skip baking ethskills (for non-ETH tasks)
+
 ./larvae.sh list
 ./larvae.sh talk <name> "message"
 ./larvae.sh status <name>
