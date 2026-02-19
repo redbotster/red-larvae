@@ -50,12 +50,8 @@ resolve_model() {
 
 next_port() {
   local port=$BASE_PORT
-  while [ -f "$LARVAE_DIR"/*.json ] 2>/dev/null; do
-    if grep -q "\"port\":$port" "$LARVAE_DIR"/*.json 2>/dev/null; then
-      port=$((port + 1))
-    else
-      break
-    fi
+  while grep -rq "\"port\":.*$port" "$LARVAE_DIR"/ 2>/dev/null; do
+    port=$((port + 1))
   done
   echo $port
 }
