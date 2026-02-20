@@ -59,6 +59,16 @@
         "authHeader": false,
         "models": [
           {
+            "id": "qwen3-coder-next",
+            "name": "Qwen3 Coder Next 80B MoE (local)",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+            "contextWindow": 65536,
+            "maxTokens": 16384,
+            "compat": { "maxTokensField": "max_tokens" }
+          },
+          {
             "id": "qwen3-next:80b",
             "name": "Qwen3 Next 80B (local)",
             "reasoning": false,

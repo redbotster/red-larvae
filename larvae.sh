@@ -61,6 +61,7 @@ resolve_model() {
     sonnet)   echo "anthropic/claude-sonnet-4-5" ;;
     gpt)      echo "openai/gpt-5.2" ;;
     qwen)     echo "ollama/qwen3-next:80b" ;;
+    qwen3)    echo "ollama/qwen3-coder-next" ;;
     devstral) echo "ollama/devstral:latest" ;;
     deepseek) echo "ollama/deepseek-r1:70b" ;;
     llama)    echo "ollama/llama3.3:latest" ;;
@@ -209,26 +210,42 @@ cmd_spawn() {
 
 You are a skilled Ethereum developer working inside an ephemeral OpenClaw container.
 
-## Core Knowledge
-Your workspace contains `ETHSKILLS.md` — a comprehensive Ethereum development knowledge base
-fetched fresh from https://ethskills.com at your spawn time. This is your bible. You have
-already internalized it. Every decision you make flows from this knowledge.
+## MANDATORY FIRST ACTION
+Before processing ANY task, you MUST run: `read ETHSKILLS.md`
+This file contains 190KB of Ethereum development knowledge from ethskills.com.
+It was fetched fresh when you were spawned. DO NOT skip this step. DO NOT start
+coding without reading it first. Read the entire file. It is your knowledge base.
 
 ## Non-Negotiable Rules
-1. **Follow ethskills exactly.** When a skill says to do something, you do it. No shortcuts.
-2. **Use Scaffold-ETH 2.** If the task involves a dApp, you start with `npx create-eth@latest`.
-   You do NOT create standalone Foundry projects. You do NOT write files from scratch when
-   SE2 provides the structure.
-3. **Follow the phases.** Phase 0 (Plan) → Phase 1 (Contracts) → Phase 2 (Test) →
+1. **Read ETHSKILLS.md first.** Every single time. Before any code. No exceptions.
+2. **Follow ethskills exactly.** When a skill says to do something, you do it. No shortcuts.
+3. **Use Scaffold-ETH 2.** Run `npx create-eth@latest` for any dApp.
+   You do NOT create standalone Foundry projects from scratch.
+   You do NOT write disconnected files. You work INSIDE the SE2 monorepo.
+4. **Follow the phases.** Phase 0 (Plan) → Phase 1 (Contracts) → Phase 2 (Test) →
    Phase 3 (Frontend) → Phase 4 (Production). Do not skip phases.
-4. **Read ETHSKILLS.md before coding.** Before writing any code, re-read the relevant
-   sections of ETHSKILLS.md to make sure you're following the prescribed approach.
-5. **Use the right paths.** SE2 contracts go in `packages/foundry/contracts/`.
-   Frontend code goes in `packages/nextjs/app/`. Tests go in `packages/foundry/test/`.
-6. **No hallucinated addresses.** Use the addresses from ethskills `addresses` section or
-   deploy your own. Never make up contract addresses.
+5. **Use SE2 paths.** Contracts: `packages/foundry/contracts/`. Tests: `packages/foundry/test/`.
+   Frontend: `packages/nextjs/app/`. Config: `packages/nextjs/scaffold.config.ts`.
+6. **No hallucinated addresses.** Use addresses from ETHSKILLS.md or deploy your own.
+7. **Run commands, don't assume.** When ethskills says to run a command, actually run it
+   with the exec tool. Don't just write files and hope they work.
 SOUL
     fi
+  fi
+
+  # Write AGENTS.md (auto-loaded by OpenClaw, reinforces ethskills workflow)
+  if [ "$ethskills" = true ]; then
+    cat > "${larva_workspace}/AGENTS.md" <<'AGENTS'
+# Agent Instructions
+
+## Workflow
+1. Read `ETHSKILLS.md` in your workspace BEFORE doing anything else
+2. Follow the ethskills ship phases: Plan → Contracts → Test → Frontend → Production
+3. Use Scaffold-ETH 2 (`npx create-eth@latest`) — never build from scratch
+4. Contracts go in `packages/foundry/contracts/`, tests in `packages/foundry/test/`
+5. Frontend goes in `packages/nextjs/app/`
+6. Run `forge test` after writing contracts, run `yarn start` to verify frontend
+AGENTS
   fi
 
   # Copy custom SOUL file if provided (overwrites default)
@@ -242,11 +259,9 @@ SOUL
   fi
 
   # Generate config with the right model (always use internal port 18789)
-  # Inject ethskills as project context so it's in the system prompt
   local config_file="${LARVAE_DIR}/${name}-config.json"
-  jq --arg model "$resolved_model" --argjson ctx "$project_context" '
+  jq --arg model "$resolved_model" '
     .agents.list[0].model.primary = $model |
-    .agents.list[0].projectContext = $ctx |
     .gateway.port = 18789
   ' "${SCRIPT_DIR}/openclaw.json" > "$config_file"
 
@@ -498,7 +513,7 @@ case "${1:-help}" in
     echo "  --soul <file>       Custom SOUL.md file for personality/role"
     echo "  --no-ethskills      Skip baking ethskills knowledge (for non-ETH tasks)"
     echo ""
-    echo "Model shortcuts: opus, sonnet, gpt, qwen, devstral, deepseek, llama, coder"
+    echo "Model shortcuts: opus, sonnet, gpt, qwen3, qwen, devstral, deepseek, llama, coder"
     echo ""
     echo "ethskills: By default, all larvae fetch the complete ethskills.com knowledge"
     echo "           base at spawn time and bake it into their context as ETHSKILLS.md."
