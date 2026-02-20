@@ -22,6 +22,10 @@ RUN echo '{"version":1,"profiles":{"ollama:default":{"type":"none","provider":"o
 # Ollama doesn't need a real key but OpenClaw auth system checks for one
 ENV OLLAMA_API_KEY=not-needed
 
+# Nerve cord heartbeat entrypoint
+COPY larva-entrypoint.sh /usr/local/bin/larva-entrypoint.sh
+RUN chmod +x /usr/local/bin/larva-entrypoint.sh
+
 # The shared volume mount point — host work persists here
 VOLUME /root/workspace
 
@@ -31,6 +35,6 @@ EXPOSE 18789
 # Default shell
 SHELL ["/bin/bash", "-c"]
 
-# Gateway mode: runs an OpenClaw gateway you can talk to
-ENTRYPOINT ["openclaw"]
+# Entrypoint: starts nerve cord heartbeat loop, then execs into openclaw
+ENTRYPOINT ["/usr/local/bin/larva-entrypoint.sh"]
 CMD ["gateway", "--port", "18789"]

@@ -1,0 +1,17 @@
+# Core skills for the builder — full-stack Ethereum engineer
+# These get baked into ETHSKILLS.md
+ship
+why
+building-blocks
+concepts
+standards
+tools
+orchestration
+addresses
+security
+testing
+frontend-ux
+frontend-playbook
+gas
+wallets
+l2s

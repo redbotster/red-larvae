@@ -2,7 +2,7 @@
 # 🦞 Larvae — Ephemeral OpenClaw orchestrator
 #
 # Usage:
-#   ./larvae.sh spawn <name> [--model <model>] [--workspace <dir>] "initial task"
+#   ./larvae.sh spawn <name> [--model <model>] [--profile <profile>] [--soul <file>] [--identity "text"] [--workspace <dir>] "initial task"
 #   ./larvae.sh list
 #   ./larvae.sh talk <name> "message"
 #   ./larvae.sh status <name>
@@ -19,6 +19,13 @@
 #   deepseek  → ollama/deepseek-r1:70b
 #   llama     → ollama/llama3.3:latest
 #   coder     → ollama/qwen2.5-coder:32b
+#
+# Profiles (--profile):
+#   builder   → full-stack engineer (contracts + frontend + tests)
+#   auditor   → security-focused Solidity auditor (FIND bugs, don't fix)
+#   qa        → obsessive frontend QA (enforces ethskills/qa checklist to the letter)
+#   frontend  → senior frontend dev (SE2 hooks, wallet flow, UX)
+#   all       → everything (default, all 17 ethskills, generic soul)
 
 set -euo pipefail
 
@@ -27,6 +34,10 @@ DEFAULT_WORKSPACE="${SCRIPT_DIR}/shared-workspace"
 LARVAE_DIR="${SCRIPT_DIR}/.larvae"
 LARVA_TOKEN="larva-token"
 BASE_PORT=28700
+
+# Nerve cord config — larvae auto-register and heartbeat
+NERVE_CORD_URL="${NERVE_CORD_URL:-http://clawds-Mac-mini.local:9999}"
+NERVE_CORD_TOKEN="${NERVE_CORD_TOKEN:-6ce47b8375e3fe92fbd54c00ba5fb37ab83c4f6fc1486328a451d642c050d3b9}"
 
 mkdir -p "$LARVAE_DIR" "$DEFAULT_WORKSPACE"
 
@@ -156,6 +167,8 @@ cmd_spawn() {
   local task=""
   local ethskills=true
   local soul_file=""
+  local profile=""
+  local identity=""
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -163,6 +176,8 @@ cmd_spawn() {
       --workspace|-w) workspace="$(cd "$2" && pwd)"; shift 2 ;;
       --no-ethskills) ethskills=false; shift ;;
       --soul|-s) soul_file="$2"; shift 2 ;;
+      --profile|-p) profile="$2"; shift 2 ;;
+      --identity|-i) identity="$2"; shift 2 ;;
       *) 
         if [ -z "$name" ]; then
           name="$1"
@@ -197,65 +212,69 @@ cmd_spawn() {
   local larva_workspace="${workspace}/${name}"
   mkdir -p "$larva_workspace"
 
-  # Bake ethskills knowledge into workspace (unless --no-ethskills)
+  # ── Resolve profile ──
+  # Default profile is "all" if none specified
+  local effective_profile="${profile:-all}"
+  local profile_dir="${SCRIPT_DIR}/profiles/${effective_profile}"
+
+  if [ ! -d "$profile_dir" ]; then
+    echo "❌ Unknown profile '${effective_profile}'. Available profiles:"
+    ls -1 "${SCRIPT_DIR}/profiles/"
+    exit 1
+  fi
+
+  echo "🎭 Profile: ${effective_profile}"
+
+  # ── Bake ethskills from profile's skills.txt ──
   local project_context="[]"
   if [ "$ethskills" = true ]; then
-    bake_ethskills "$larva_workspace"
-    project_context='["ETHSKILLS.md"]'
+    # Override ETHSKILLS_PATHS with profile's skills.txt
+    if [ -f "${profile_dir}/skills.txt" ]; then
+      local profile_skills=()
+      while IFS= read -r line; do
+        # Skip comments and empty lines
+        [[ "$line" =~ ^#.*$ ]] && continue
+        [[ -z "${line// }" ]] && continue
+        profile_skills+=("$line")
+      done < "${profile_dir}/skills.txt"
 
-    # Write default ethskills SOUL.md if no soul file provided and none exists
-    if [ -z "$soul_file" ] && [ ! -f "${larva_workspace}/SOUL.md" ]; then
-      cat > "${larva_workspace}/SOUL.md" <<'SOUL'
-# Soul
-
-You are a skilled Ethereum developer working inside an ephemeral OpenClaw container.
-
-## MANDATORY FIRST ACTION
-Before processing ANY task, you MUST run: `read ETHSKILLS.md`
-This file contains 190KB of Ethereum development knowledge from ethskills.com.
-It was fetched fresh when you were spawned. DO NOT skip this step. DO NOT start
-coding without reading it first. Read the entire file. It is your knowledge base.
-
-## Non-Negotiable Rules
-1. **Read ETHSKILLS.md first.** Every single time. Before any code. No exceptions.
-2. **Follow ethskills exactly.** When a skill says to do something, you do it. No shortcuts.
-3. **Use Scaffold-ETH 2.** Run `npx create-eth@latest` for any dApp.
-   You do NOT create standalone Foundry projects from scratch.
-   You do NOT write disconnected files. You work INSIDE the SE2 monorepo.
-4. **Follow the phases.** Phase 0 (Plan) → Phase 1 (Contracts) → Phase 2 (Test) →
-   Phase 3 (Frontend) → Phase 4 (Production). Do not skip phases.
-5. **Use SE2 paths.** Contracts: `packages/foundry/contracts/`. Tests: `packages/foundry/test/`.
-   Frontend: `packages/nextjs/app/`. Config: `packages/nextjs/scaffold.config.ts`.
-6. **No hallucinated addresses.** Use addresses from ETHSKILLS.md or deploy your own.
-7. **Run commands, don't assume.** When ethskills says to run a command, actually run it
-   with the exec tool. Don't just write files and hope they work.
-SOUL
+      if [ ${#profile_skills[@]} -gt 0 ]; then
+        # Temporarily override ETHSKILLS_PATHS
+        local saved_paths=("${ETHSKILLS_PATHS[@]}")
+        ETHSKILLS_PATHS=("${profile_skills[@]}")
+        bake_ethskills "$larva_workspace"
+        ETHSKILLS_PATHS=("${saved_paths[@]}")
+      else
+        bake_ethskills "$larva_workspace"
+      fi
+    else
+      bake_ethskills "$larva_workspace"
     fi
+    project_context='["ETHSKILLS.md"]'
   fi
 
-  # Write AGENTS.md (auto-loaded by OpenClaw, reinforces ethskills workflow)
-  if [ "$ethskills" = true ]; then
-    cat > "${larva_workspace}/AGENTS.md" <<'AGENTS'
-# Agent Instructions
-
-## Workflow
-1. Read `ETHSKILLS.md` in your workspace BEFORE doing anything else
-2. Follow the ethskills ship phases: Plan → Contracts → Test → Frontend → Production
-3. Use Scaffold-ETH 2 (`npx create-eth@latest`) — never build from scratch
-4. Contracts go in `packages/foundry/contracts/`, tests in `packages/foundry/test/`
-5. Frontend goes in `packages/nextjs/app/`
-6. Run `forge test` after writing contracts, run `yarn start` to verify frontend
-AGENTS
-  fi
-
-  # Copy custom SOUL file if provided (overwrites default)
+  # ── Write SOUL.md from profile (unless --soul overrides) ──
   if [ -n "$soul_file" ]; then
     if [ -f "$soul_file" ]; then
       cp "$soul_file" "${larva_workspace}/SOUL.md"
       echo "📜 Custom SOUL loaded from: ${soul_file}"
     else
-      echo "⚠️  SOUL file not found: ${soul_file} — using default"
+      echo "⚠️  SOUL file not found: ${soul_file} — using profile default"
+      cp "${profile_dir}/SOUL.md" "${larva_workspace}/SOUL.md"
     fi
+  else
+    cp "${profile_dir}/SOUL.md" "${larva_workspace}/SOUL.md"
+  fi
+
+  # ── Write AGENTS.md from profile ──
+  cp "${profile_dir}/AGENTS.md" "${larva_workspace}/AGENTS.md"
+
+  # ── Write IDENTITY.md if --identity provided ──
+  if [ -n "$identity" ]; then
+    echo "# Identity" > "${larva_workspace}/IDENTITY.md"
+    echo "" >> "${larva_workspace}/IDENTITY.md"
+    echo "$identity" >> "${larva_workspace}/IDENTITY.md"
+    echo "🪪 Custom identity set"
   fi
 
   # Generate config with the right model (always use internal port 18789)
@@ -268,6 +287,12 @@ AGENTS
   # Build env args
   local env_args="-e ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
   [ -n "${OPENAI_API_KEY:-}" ] && env_args="$env_args -e OPENAI_API_KEY=${OPENAI_API_KEY}"
+
+  # Nerve cord env vars — larva entrypoint uses these to auto-register & heartbeat
+  env_args="$env_args -e NERVE_CORD_URL=${NERVE_CORD_URL}"
+  env_args="$env_args -e NERVE_CORD_TOKEN=${NERVE_CORD_TOKEN}"
+  env_args="$env_args -e LARVA_NAME=${name}"
+  env_args="$env_args -e LARVA_MODEL=${model}"
 
   # Spawn the container with gateway mode
   # Maps host port → container internal port 18789

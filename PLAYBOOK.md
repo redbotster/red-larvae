@@ -158,7 +158,7 @@ The parent agent writes this plan to `shared-workspace/BUILD-PLAN.md`. This file
 Spawn the contract developer larva:
 
 ```bash
-./larvae.sh spawn contract-dev --model opus
+./larvae.sh spawn contract-dev --model opus --profile builder
 ```
 
 Give it the plan. Be SPECIFIC:
@@ -201,7 +201,7 @@ Run the tests. They must all pass. Show me the results.
 Spawn a SEPARATE QA larva with FRESH context. **Never audit with the same agent that built the code.** Fresh eyes catch what the builder is blind to.
 
 ```bash
-./larvae.sh spawn qa-audit --model opus
+./larvae.sh spawn qa-audit --model opus --profile auditor
 ```
 
 Copy the project into the QA workspace:
@@ -296,7 +296,7 @@ Use the testing values from the build plan (smaller amounts, shorter times) for 
 Spawn the frontend developer larva:
 
 ```bash
-./larvae.sh spawn frontend-dev --model opus
+./larvae.sh spawn frontend-dev --model opus --profile frontend
 ```
 
 Copy the contract project (with contracts already built and deployed locally):
@@ -365,7 +365,7 @@ every step of every journey exactly as written.
 Spawn a fresh QA larva for frontend review:
 
 ```bash
-./larvae.sh spawn qa-frontend --model opus
+./larvae.sh spawn qa-frontend --model opus --profile qa
 ```
 
 Copy the project:
@@ -663,7 +663,7 @@ Buyer: Connect → browse listings → click item → see details + price → bu
 
 ### Commands
 ```bash
-./larvae.sh spawn <name> --model opus     # Hatch a larva
+./larvae.sh spawn <name> --model opus --profile builder   # Hatch a larva with a profile
 ./larvae.sh talk <name> "message"         # Send it work
 ./larvae.sh list                          # See all larvae
 ./larvae.sh status <name>                 # Check health
@@ -672,12 +672,21 @@ Buyer: Connect → browse listings → click item → see details + price → bu
 ./larvae.sh killall                       # Kill all
 ```
 
+### Profiles
+```
+builder   → full-stack engineer: contracts + frontend + tests (all ethskills)
+auditor   → security-focused Solidity auditor: finds bugs, never fixes (security + testing skills)
+qa        → obsessive frontend QA: enforces ethskills/qa checklist to the letter (qa + frontend skills)
+frontend  → senior frontend dev: SE2 hooks, wallet flow, UX (frontend + qa skills)
+all       → generic dev with all 17 ethskills (default)
+```
+
 ### Typical Larva Team
 ```
-contract-dev (opus)   → builds contracts + tests
-qa-audit (opus)       → audits contracts (fresh context, separate from builder)
-frontend-dev (opus)   → builds frontend to user journey specs
-qa-frontend (opus)    → audits frontend (fresh context)
+contract-dev  --profile builder   → builds contracts + tests
+qa-audit      --profile auditor   → audits contracts (fresh context, separate from builder)
+frontend-dev  --profile frontend  → builds frontend to user journey specs
+qa-frontend   --profile qa        → audits frontend (fresh context)
 ```
 
 ### Key Rules

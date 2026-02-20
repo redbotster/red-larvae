@@ -1,0 +1,8 @@
+# Core skills for QA — frontend quality assurance specialist
+# QA and frontend skills are the priority
+qa
+frontend-ux
+frontend-playbook
+security
+standards
+wallets

@@ -1,0 +1,12 @@
+# Core skills for the frontend dev
+# Frontend-focused with enough contract knowledge to integrate
+frontend-ux
+frontend-playbook
+qa
+wallets
+building-blocks
+orchestration
+standards
+concepts
+addresses
+ship

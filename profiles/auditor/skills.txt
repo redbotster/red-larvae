@@ -1,0 +1,9 @@
+# Core skills for the auditor — security-focused Solidity expert
+# Security and testing are the priority, everything else is reference
+security
+testing
+gas
+standards
+concepts
+building-blocks
+addresses
