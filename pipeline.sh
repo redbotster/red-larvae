@@ -126,10 +126,48 @@ run_larva() {
   local talk_pid=$!
   
   # Wait with timeout
+  # Note: `openclaw agent` may hang if larva starts background processes (anvil, next.js)
+  # because docker exec waits for all child processes. We detect this by checking if the
+  # agent has finished (via container log) even if docker exec hasn't returned.
   local elapsed=0
   while kill -0 "$talk_pid" 2>/dev/null; do
     sleep 5
     elapsed=$((elapsed + 5))
+    
+    # Check if the agent finished but docker exec is stuck (background processes in container)
+    local container_name="larva-${name}"
+    if docker ps --filter "name=${container_name}" --format '{{.Names}}' 2>/dev/null | grep -q .; then
+      # Container still running — check if agent process exited
+      local agent_count=$(docker exec "$container_name" pgrep -f "openclaw-agent" 2>/dev/null | wc -l)
+      if [ "$agent_count" -eq 0 ] && [ "$elapsed" -gt 30 ]; then
+        # Agent finished but docker exec still running (background processes)
+        log "Agent finished but docker exec stuck (background processes). Extracting output..."
+        kill "$talk_pid" 2>/dev/null || true
+        wait "$talk_pid" 2>/dev/null || true
+        
+        # Extract output from container log
+        docker exec "$container_name" cat /tmp/openclaw/openclaw-*.log 2>/dev/null | \
+          grep '"payloads"' | tail -1 | \
+          python3 -c "
+import sys, json
+try:
+    raw = sys.stdin.read().strip()
+    log = json.loads(raw)
+    data = json.loads(log.get('0', '{}'))
+    for p in data.get('payloads', []):
+        t = p.get('text', '')
+        if t: print(t)
+    meta = data.get('meta', {}).get('agentMeta', {})
+    d = data.get('meta', {}).get('durationMs', 0)
+    tok = meta.get('usage', {}).get('total', 0)
+    print(f'\\n─── 🧠 {meta.get(\"model\", \"unknown\")} · {d}ms · {tok} tokens ───')
+except: pass
+" > "$tmpfile" 2>/dev/null
+        ok "Larva ${name} completed (extracted from container log)"
+        break
+      fi
+    fi
+    
     if [ "$elapsed" -ge "$TALK_TIMEOUT" ]; then
       kill "$talk_pid" 2>/dev/null || true
       wait "$talk_pid" 2>/dev/null || true
@@ -140,16 +178,19 @@ run_larva() {
     fi
   done
   
-  wait "$talk_pid"
-  local exit_code=$?
-  
-  if [ "$exit_code" -eq 0 ]; then
-    ok "Larva ${name} completed"
+  # If we didn't break out early, wait for normal exit
+  if kill -0 "$talk_pid" 2>/dev/null; then
+    : # already handled above
   else
-    fail "Larva ${name} failed (exit code: ${exit_code})"
-    cat "$tmpfile" >> "$logfile"
-    rm -f "$tmpfile"
-    return 1
+    wait "$talk_pid" 2>/dev/null
+    local exit_code=$?
+    if [ "$exit_code" -ne 0 ]; then
+      fail "Larva ${name} failed (exit code: ${exit_code})"
+      cat "$tmpfile" >> "$logfile"
+      rm -f "$tmpfile"
+      return 1
+    fi
+    ok "Larva ${name} completed"
   fi
 
   # Save output
