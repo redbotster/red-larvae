@@ -54,7 +54,7 @@ Source: https://ethskills.com/orchestration/SKILL.md, https://ethskills.com/fron
 **Every project gets a git repo from the start. Commit early, commit often. When you ship, you ship a polished repo — not a pile of files.**
 
 ### The Rules
-1. **`git init` + first commit immediately after `npx create-eth@latest`** — the clean SE2 scaffold is your baseline
+1. **Set up the remote immediately after `npx create-eth@latest`** — SE2 already initializes a git repo with an initial commit, so just add your remote and push the baseline
 2. **Commit after every meaningful milestone** — contract written, tests passing, deploy working, frontend built, QA fixes applied
 3. **Commit messages describe WHAT changed and WHY** — not "update" or "fix"
 4. **The final repo must be clean** — no leftover debug code, no commented-out experiments, no `console.log` spam
@@ -63,7 +63,7 @@ Source: https://ethskills.com/orchestration/SKILL.md, https://ethskills.com/fron
 ### Commit Cadence Through the Pipeline
 | Step | Commit |
 |------|--------|
-| After `npx create-eth@latest` | `git init && git add -A && git commit -m "scaffold-eth 2 init"` |
+| After `npx create-eth@latest` | `git remote add origin <repo-url> && git push -u origin main` |
 | Step 2: Contracts written + tests pass | `"feat: add <Contract> with tests (N/N passing)"` |
 | Step 3: Audit fixes applied | `"fix: address audit findings — <summary>"` |
 | Step 4: Local deploy verified | `"chore: verify local fork deploy"` |
@@ -240,19 +240,18 @@ These get used in Phase 1. Production values get set in Phase 2/3.
 
 The parent agent writes this plan to `shared-workspace/BUILD-PLAN.md`. This file gets copied into every larva's workspace so they all work from the same spec.
 
-### 1f. Create the Git Repo
+### 1f. Set Up the Git Remote
 
-The parent agent (or the first larva) initializes the repo right after scaffolding:
+SE2 already initializes a git repo with an initial commit. Just add the remote:
 
 ```bash
-npx create-eth@latest       # Create the SE2 project
+npx create-eth@latest       # Creates the SE2 project (includes git init + first commit)
 cd <project-name>
-git init
-git add -A
-git commit -m "scaffold-eth 2 init"
+git remote add origin <github-repo-url>
+git push -u origin main
 ```
 
-This clean baseline commit means you can always `git diff` to see exactly what was added.
+This clean SE2 baseline is already committed — every subsequent `git diff` shows exactly what you added.
 
 ---
 
