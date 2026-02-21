@@ -5,6 +5,7 @@
 #   ./larvae.sh spawn <name> [--model <model>] [--profile <profile>] [--soul <file>] [--identity "text"] [--workspace <dir>] "initial task"
 #   ./larvae.sh list
 #   ./larvae.sh talk <name> "message"
+#   ./larvae.sh watch <name> "message"   # talk + stream docker logs live
 #   ./larvae.sh status <name>
 #   ./larvae.sh logs <name>
 #   ./larvae.sh kill <name>
@@ -409,6 +410,76 @@ cmd_talk() {
 
 # ─── Status ───────────────────────────────────────────────────────────────────
 
+# ─── Watch — Talk with live log streaming ─────────────────────────────────────
+
+cmd_watch() {
+  local name="$1"
+  shift
+  local message="$*"
+
+  if [ -z "$name" ] || [ -z "$message" ]; then
+    echo "Usage: larvae.sh watch <name> \"message\""
+    echo "  Like 'talk' but streams docker logs in real-time so you can see tool calls."
+    exit 1
+  fi
+
+  local meta="${LARVAE_DIR}/${name}.json"
+  if [ ! -f "$meta" ]; then
+    echo "❌ No larva named '${name}'. Run: ./larvae.sh list"
+    exit 1
+  fi
+
+  local container="larva-${name}"
+
+  if ! docker ps --filter "name=${container}" --format '{{.Names}}' | grep -q .; then
+    echo "❌ Larva '${name}' is not running."
+    exit 1
+  fi
+
+  echo "📡 Watching larva '${name}' work..."
+  echo "═══════════════════════════════════════════════════════════════"
+  echo ""
+
+  # Start docker logs -f in background (only new logs from now)
+  docker logs -f --since 0s "${container}" 2>&1 &
+  local logs_pid=$!
+
+  # Run the agent talk (blocks until done)
+  local tmpfile=$(mktemp)
+  docker exec "$container" openclaw agent \
+    --agent larva \
+    --message "$message" \
+    --timeout 900 \
+    --json 2>/dev/null > "$tmpfile"
+
+  # Kill the log tail
+  kill "$logs_pid" 2>/dev/null
+  wait "$logs_pid" 2>/dev/null
+
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════"
+  echo ""
+
+  # Show the final result summary
+  local texts
+  texts=$(jq -r '.payloads[]?.text // empty' "$tmpfile" 2>/dev/null)
+  
+  if [ -n "$texts" ]; then
+    echo "📋 Final Result:"
+    echo "$texts"
+  fi
+
+  local model=$(jq -r '.meta.agentMeta.model // "unknown"' "$tmpfile" 2>/dev/null)
+  local duration=$(jq -r '.meta.durationMs // 0' "$tmpfile" 2>/dev/null)
+  local total_tokens=$(jq -r '.meta.agentMeta.usage.total // 0' "$tmpfile" 2>/dev/null)
+  echo ""
+  echo "─── 🧠 ${model} · ${duration}ms · ${total_tokens} tokens ───"
+
+  rm -f "$tmpfile"
+}
+
+# ─── Status ───────────────────────────────────────────────────────────────────
+
 cmd_status() {
   local name="$1"
   local meta="${LARVAE_DIR}/${name}.json"
@@ -526,6 +597,7 @@ case "${1:-help}" in
   spawn)   shift; cmd_spawn "$@" ;;
   list|ls) cmd_list ;;
   talk|t)  shift; cmd_talk "$@" ;;
+  watch|w) shift; cmd_watch "$@" ;;
   status)  shift; cmd_status "$@" ;;
   logs)    shift; cmd_logs "$@" ;;
   kill)    shift; cmd_kill "$@" ;;
@@ -536,7 +608,8 @@ case "${1:-help}" in
     echo "Commands:"
     echo "  spawn <name> [options] \"task\"    Hatch a larva"
     echo "  list                              List all larvae"
-    echo "  talk <name> \"message\"             Send a message"
+    echo "  talk <name> \"message\"             Send a message (blocks, returns result)"
+    echo "  watch <name> \"message\"            Talk + stream logs live (see tool calls in real-time)"
     echo "  status <name>                     Check on a larva"
     echo "  logs <name> [lines]               View container logs"
     echo "  kill <name>                       Kill a larva"
