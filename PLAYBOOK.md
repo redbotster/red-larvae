@@ -49,6 +49,51 @@ Source: https://ethskills.com/orchestration/SKILL.md, https://ethskills.com/fron
 
 ---
 
+## 📦 Git: Every Project Is a Repo
+
+**Every project gets a git repo from the start. Commit early, commit often. When you ship, you ship a polished repo — not a pile of files.**
+
+### The Rules
+1. **`git init` + first commit immediately after `npx create-eth@latest`** — the clean SE2 scaffold is your baseline
+2. **Commit after every meaningful milestone** — contract written, tests passing, deploy working, frontend built, QA fixes applied
+3. **Commit messages describe WHAT changed and WHY** — not "update" or "fix"
+4. **The final repo must be clean** — no leftover debug code, no commented-out experiments, no `console.log` spam
+5. **README.md gets rewritten at the end** — the SE2 default README is about SE2, yours is about YOUR app
+
+### Commit Cadence Through the Pipeline
+| Step | Commit |
+|------|--------|
+| After `npx create-eth@latest` | `git init && git add -A && git commit -m "scaffold-eth 2 init"` |
+| Step 2: Contracts written + tests pass | `"feat: add <Contract> with tests (N/N passing)"` |
+| Step 3: Audit fixes applied | `"fix: address audit findings — <summary>"` |
+| Step 4: Local deploy verified | `"chore: verify local fork deploy"` |
+| Step 5: Frontend built | `"feat: add frontend — <summary of pages/features>"` |
+| Step 6: QA fixes applied | `"fix: address frontend QA — <summary>"` |
+| Step 7: E2E pass | `"test: E2E pass — all user journeys verified"` |
+| Step 8: Production deploy | `"deploy: contracts live on <chain> at <address>"` |
+| Step 10: Frontend deployed | `"deploy: frontend live at <url>"` |
+| Final | `"docs: polish README for release"` |
+
+### The Final README
+The shipped repo README must include:
+- **What the app does** — one paragraph, plain English
+- **Live URL** — link to the deployed frontend
+- **Contract addresses** — deployed addresses on each chain with block explorer links
+- **How to run locally** — `yarn fork`, `yarn deploy`, `yarn start`
+- **Architecture** — what contracts exist, what they do, how the frontend talks to them
+- **Screenshots** — at least one showing the main user flow
+- **Tech stack** — Scaffold-ETH 2, Foundry, Next.js, etc.
+
+**Do NOT leave the SE2 default README.** That's the #1 tell that someone didn't finish the project.
+
+### .gitignore
+SE2 comes with a good `.gitignore`. Make sure these are NOT committed:
+- `node_modules/`, `.next/`, `out/`, `cache/`
+- `.env` files with secrets
+- `deployedContracts.ts` is OK to commit (it's auto-generated but useful for the repo)
+
+---
+
 ## The Problem This Solves
 
 AI agents build apps that are unusable. They generate code that compiles but nobody can actually use. The contract works but the frontend is broken. The frontend loads but the user can't figure out what to do. The approve flow is missing. The button doesn't disable. The network switch doesn't work. The transfer history is empty.
@@ -195,6 +240,20 @@ These get used in Phase 1. Production values get set in Phase 2/3.
 
 The parent agent writes this plan to `shared-workspace/BUILD-PLAN.md`. This file gets copied into every larva's workspace so they all work from the same spec.
 
+### 1f. Create the Git Repo
+
+The parent agent (or the first larva) initializes the repo right after scaffolding:
+
+```bash
+npx create-eth@latest       # Create the SE2 project
+cd <project-name>
+git init
+git add -A
+git commit -m "scaffold-eth 2 init"
+```
+
+This clean baseline commit means you can always `git diff` to see exactly what was added.
+
 ---
 
 ## Step 2: Build the Contract
@@ -251,6 +310,7 @@ They must all pass. Show me the results.
 - [ ] All tests pass
 - [ ] No hallucinated addresses
 - [ ] Contract interface matches the build plan
+- [ ] **Git: commit** — `git add -A && git commit -m "feat: add <Contract> with tests (N/N passing)"`
 
 ---
 
@@ -329,6 +389,8 @@ Document decisions in `shared-workspace/AUDIT-NOTES.md`:
 - Finding: "No timelock on admin" → Known: MVP ships without timelock, add in v2
 - Finding: "Centralization risk" → Dismissed: Owner is a multisig in production
 ```
+
+**Git: commit audit fixes** — `git add -A && git commit -m "fix: address audit findings — <summary>"`
 
 ---
 
@@ -416,6 +478,8 @@ Build EACH user journey as described in the plan. The user should be able to wal
 every step of every journey exactly as written.
 ```
 
+**Git: commit frontend** — `git add -A && git commit -m "feat: add frontend — <summary of pages/features>"`
+
 ---
 
 ## Step 6: Frontend QA
@@ -468,6 +532,8 @@ Give SHIP / NO-SHIP verdict.
 ```
 
 Fix any issues by talking to the frontend-dev larva (same as Step 3 Outcome B).
+
+**Git: commit QA fixes** — `git add -A && git commit -m "fix: address frontend QA — <summary>"`
 
 ---
 
@@ -625,6 +691,7 @@ yarn verify --network base
 - [ ] Contract verified on BaseScan
 - [ ] All read functions return expected values
 - [ ] One small test transaction works
+- [ ] **Git: commit** — `git add -A && git commit -m "deploy: contracts live on <chain> at <address>"`
 
 ---
 
@@ -701,6 +768,8 @@ cd packages/nextjs && vercel
 - **Custom domain:** Point DNS to Vercel or use a gateway
 - **This sometimes needs a human** — if ENS transactions are needed, tell the human what to do
 
+**Git: commit** — `git add -A && git commit -m "deploy: frontend live at <url>"`
+
 ---
 
 ## Step 11: Test Every Journey on Live Production
@@ -759,10 +828,26 @@ Fix issues. Go back to whatever step is needed. Redeploy.
 
 When beta testers can walk through every journey without confusion:
 
-1. **Tweet the live URL** — include a screenshot/video of the main flow
-2. **Post to relevant communities** — Farcaster, Discord, etc.
-3. **Monitor** — watch contract events on BaseScan, check for unexpected behavior
-4. **Have an incident plan** — if something goes wrong, know how to pause (if the contract supports it) and communicate
+1. **Polish the README** — Replace the SE2 default README entirely. Include:
+   - What the app does (one paragraph)
+   - Live URL
+   - Contract addresses with block explorer links
+   - How to run locally (`yarn fork`, `yarn deploy`, `yarn start`)
+   - Architecture overview
+   - Screenshots of the main flow
+   - Tech stack
+2. **Final git commit + push:**
+   ```bash
+   git add -A && git commit -m "docs: polish README for release"
+   git remote add origin <github-url>  # if not already set
+   git push -u origin main
+   ```
+3. **Tweet the live URL** — include a screenshot/video of the main flow
+4. **Post to relevant communities** — Farcaster, Discord, etc.
+5. **Monitor** — watch contract events on BaseScan, check for unexpected behavior
+6. **Have an incident plan** — if something goes wrong, know how to pause (if the contract supports it) and communicate
+
+**The shipped repo should be something you're proud to share.** Clean commit history, polished README, no junk files. This IS the deliverable.
 
 ---
 
