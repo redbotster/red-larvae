@@ -121,15 +121,32 @@ run_larva() {
   log "Sending task to ${name}... (timeout: ${TALK_TIMEOUT}s)"
   local tmpfile=$(mktemp)
   
-  if timeout "$TALK_TIMEOUT" "${SCRIPT_DIR}/larvae.sh" talk "$name" "$message" > "$tmpfile" 2>&1; then
+  # macOS doesn't have `timeout` — use background + wait + kill
+  "${SCRIPT_DIR}/larvae.sh" talk "$name" "$message" > "$tmpfile" 2>&1 &
+  local talk_pid=$!
+  
+  # Wait with timeout
+  local elapsed=0
+  while kill -0 "$talk_pid" 2>/dev/null; do
+    sleep 5
+    elapsed=$((elapsed + 5))
+    if [ "$elapsed" -ge "$TALK_TIMEOUT" ]; then
+      kill "$talk_pid" 2>/dev/null || true
+      wait "$talk_pid" 2>/dev/null || true
+      fail "Larva ${name} timed out after ${TALK_TIMEOUT}s"
+      cat "$tmpfile" >> "$logfile"
+      rm -f "$tmpfile"
+      return 1
+    fi
+  done
+  
+  wait "$talk_pid"
+  local exit_code=$?
+  
+  if [ "$exit_code" -eq 0 ]; then
     ok "Larva ${name} completed"
   else
-    local exit_code=$?
-    if [ "$exit_code" -eq 124 ]; then
-      fail "Larva ${name} timed out after ${TALK_TIMEOUT}s"
-    else
-      fail "Larva ${name} failed (exit code: ${exit_code})"
-    fi
+    fail "Larva ${name} failed (exit code: ${exit_code})"
     cat "$tmpfile" >> "$logfile"
     rm -f "$tmpfile"
     return 1
@@ -161,10 +178,26 @@ copy_project() {
   if [ -d "$from_dir" ]; then
     log "Copying project: ${from_name}/${PROJECT} → ${to_name}/"
     rm -rf "${to_dir}/${PROJECT}"
-    cp -r "$from_dir" "${to_dir}/${PROJECT}"
+    # Use rsync to skip heavy dirs that larvae can reinstall themselves
+    # node_modules, .next, out, cache, foundry lib (openzeppelin etc) = ~3GB saved
+    rsync -a --delete \
+      --exclude='node_modules' \
+      --exclude='.next' \
+      --exclude='out' \
+      --exclude='cache' \
+      --exclude='packages/foundry/lib' \
+      --exclude='packages/foundry/out' \
+      "$from_dir/" "${to_dir}/${PROJECT}/"
     # Also copy BUILD-PLAN.md
     cp "$PLAN_FILE" "${to_dir}/BUILD-PLAN.md"
-    ok "Project copied"
+    # Verify the copy worked
+    if [ -d "${to_dir}/${PROJECT}/packages" ]; then
+      local size=$(du -sh "${to_dir}/${PROJECT}" 2>/dev/null | cut -f1)
+      ok "Project copied (${size}, excludes node_modules/lib)"
+    else
+      fail "Copy failed — ${to_dir}/${PROJECT}/packages not found"
+      return 1
+    fi
   else
     fail "Source project not found: ${from_dir}"
     return 1
@@ -356,6 +389,8 @@ Read ETHSKILLS.md first — focus on qa and frontend-ux sections.
 
 The code is in your workspace at ${PROJECT}/packages/nextjs/
 Also read BUILD-PLAN.md — it has the user journeys the frontend should implement.
+
+NOTE: node_modules are not included — run 'cd ${PROJECT} && yarn install' first if you need to build/check types.
 
 Review every .tsx file in app/ and components/, plus scaffold.config.ts and contracts/externalContracts.ts.
 

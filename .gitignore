@@ -2,5 +2,8 @@
 .larvae/
 shared-workspace/
 
+# Pipeline logs (generated at runtime)
+.pipeline-logs/
+
 # OS
 .DS_Store
