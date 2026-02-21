@@ -129,6 +129,13 @@
       "ollama:default": { "provider": "ollama", "mode": "token" }
     }
   },
+  "browser": {
+    "enabled": true,
+    "headless": true,
+    "noSandbox": true,
+    "executablePath": "/usr/bin/chromium",
+    "defaultProfile": "openclaw"
+  },
   "gateway": {
     "port": 18789,
     "mode": "local",

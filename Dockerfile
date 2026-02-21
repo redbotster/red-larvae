@@ -1,12 +1,32 @@
 FROM node:22-slim
 
-# Install basic tools
+# Install basic tools + Chromium dependencies
 RUN apt-get update && apt-get install -y \
     git curl jq fish \
+    # Chromium deps for headless browser in container
+    chromium \
+    fonts-liberation \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
+    libxkbcommon0 \
+    libgbm1 \
+    libasound2 \
+    libcups2 \
+    libxdamage1 \
+    libxrandr2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install OpenClaw globally
 RUN npm install -g openclaw
+
+# Install Playwright Chromium (uses the system Chromium, just needs the node bindings)
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+RUN npm install -g playwright
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Create workspace, config dir, and agent auth dir
 RUN mkdir -p /root/.openclaw/workspace /root/workspace \

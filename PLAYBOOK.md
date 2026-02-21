@@ -413,23 +413,104 @@ Fix any issues by talking to the frontend-dev larva (same as Step 3 Outcome B).
 
 ---
 
-## Step 7: Walk Every User Journey on Localhost
+## Step 7: Walk Every User Journey on Localhost (Burner Wallet E2E)
 
 **This is where most builds currently fail.** The code passes QA but the actual user experience is broken.
 
-For EACH user archetype from the build plan, walk through their ENTIRE journey with a burner wallet on localhost:
+**Larvae CAN do this step.** Scaffold-ETH 2 provides burner wallets on local forks — no MetaMask extension needed. The larva uses its headless browser to:
+1. Open `localhost:3000`
+2. SE2 auto-connects a burner wallet on `chains.foundry` (Anvil)
+3. Walk EVERY user journey step, taking screenshots at each state
+4. Actually click buttons, submit transactions, and verify results onchain
+
+### How to Run This Step
+
+Spawn a QA larva WITH browser access (the Docker image includes headless Chromium):
+
+```bash
+./larvae.sh spawn qa-e2e --model opus --profile qa
+```
+
+Copy the full project (with frontend built):
+```bash
+cp -r shared-workspace/frontend-dev/<project> shared-workspace/qa-e2e/
+```
+
+**The QA larva must start the full SE2 stack inside its container**, then use the browser tool to test:
 
 ```
-For each journey in BUILD-PLAN.md:
-  1. Open localhost:3000 in browser (or take a snapshot)
-  2. Start with no wallet connected
-  3. Follow every step in the journey
-  4. At each step, verify:
-     - Does the UI show what the journey says it should?
-     - Does the button do what it's supposed to?
-     - Does the loading state work?
-     - Does the result appear?
-  5. Document any step that fails or feels wrong
+Read ETHSKILLS.md first — focus on qa and frontend-ux sections.
+
+You have a headless Chromium browser available via the `browser` tool.
+The SE2 project is in your workspace at <project>/.
+
+Your job: START the app and walk EVERY user journey from BUILD-PLAN.md using the browser.
+
+## Setup (run these commands first):
+
+1. Start the local Anvil fork:
+   cd <project> && yarn fork --network base
+   (wait for it to be ready)
+
+2. Deploy contracts to the fork:
+   yarn deploy
+
+3. Start the frontend:
+   yarn start
+   (wait for localhost:3000 to be ready)
+
+## Testing with Burner Wallets:
+
+SE2 on chains.foundry auto-generates a burner wallet with a funded Anvil account.
+When you open localhost:3000, the burner wallet connects automatically.
+
+For the Depositor journey, you need the burner wallet to have CLAWD tokens.
+On the Anvil fork, you can impersonate the real CLAWD holders to send tokens:
+
+```bash
+# Find a large CLAWD holder and impersonate them to fund the burner wallet
+cast send --unlocked --from <whale_address> <CLAWD_token_address> \
+  "transfer(address,uint256)" <burner_wallet_address> <amount> \
+  --rpc-url http://localhost:8545
+```
+
+## Walk EVERY Journey:
+
+### Viewer Journey:
+1. Open localhost:3000 in the browser (browser tool: navigate)
+2. Take a screenshot — verify: recipient address visible, progress bar, countdown timer
+3. Verify all read values make sense (total locked, vested, claimed, claimable)
+
+### Depositor Journey:
+1. Ensure burner wallet has CLAWD tokens (use cast impersonation above)
+2. Navigate to the app
+3. Verify burner wallet is auto-connected
+4. Enter deposit amount
+5. Click Approve → take screenshot → verify spinner/loading state
+6. Wait for approval to confirm → take screenshot → verify button changed to "Deposit"
+7. Click Deposit → take screenshot → verify spinner
+8. Wait for deposit to confirm → take screenshot → verify dashboard updated
+
+### Claimer Journey:
+1. Advance the Anvil fork time to simulate vesting:
+   cast rpc evm_increaseTime 150  # Half the 300s test duration
+   cast rpc evm_mine
+2. Refresh the page → take screenshot → verify claimable amount > 0
+3. Click Claim → take screenshot → verify spinner
+4. Wait for claim to confirm → take screenshot → verify claimed amount increased
+5. Advance time to full vesting (300s) and claim remaining
+
+## For EACH step, verify:
+- Does the UI show what the journey says it should?
+- Does the button disable + show spinner during tx?
+- Does the result appear after confirmation?
+- Are amounts human-readable (not raw wei)?
+- Is the progress bar accurate?
+
+## Report:
+For each journey, report PASS/FAIL per step with screenshots.
+If ANY step fails, describe exactly what went wrong and what you expected.
+Give an overall E2E SHIP / NO-SHIP verdict.
 ```
 
 **Common failures caught at this step:**
@@ -440,6 +521,9 @@ For each journey in BUILD-PLAN.md:
 - Network switch doesn't actually switch (button stays)
 - USD values are NaN or $0.00
 - Page is blank when no wallet is connected
+- Progress bar doesn't update after time passes
+- Claim button visible but claimable amount is 0
+- Deposit works but dashboard doesn't reflect new total
 
 **If ANY journey step fails:** Go back to Step 5 (frontend) or even Step 2 (contract) if the issue is in the contract. Fix it. Re-test. This loop is normal and expected — don't skip it.
 
@@ -473,12 +557,14 @@ yarn verify --network base
 
 ---
 
-## Step 9: Test Every Journey on Real Network with Local UI
+## Step 9: Test Every Journey on Real Network with Local UI (Human + Real Wallet)
+
+**This step requires a HUMAN with a real browser and MetaMask/wallet extension.** Larvae cannot do this — they don't have wallet extensions.
 
 **Keep the frontend on localhost but pointed at the real Base contracts.** This is Phase 2 of the three-phase system.
 
 Walk through EVERY user journey again, but now with:
-- Real wallets (not burner wallets)
+- Real wallets (not burner wallets) — MetaMask, Rainbow, Coinbase Wallet, etc.
 - Real tokens on Base
 - Small real amounts ($1-$10)
 - Real gas costs
@@ -492,6 +578,8 @@ For each journey in BUILD-PLAN.md:
   5. Verify events emitted correctly
   6. Document any failures
 ```
+
+**The parent agent can assist** by watching over the human's shoulder (via browser relay/screenshots) and checking on-chain state with `cast` or etherscan, but the human drives the wallet.
 
 **If ANY step fails:** Go back to the appropriate phase:
 - Frontend bug → Step 5, fix, re-test from Step 7
@@ -701,11 +789,12 @@ qa-frontend   --profile qa        → audits frontend (fresh context)
 ## Known Limitations
 
 1. **Local models can't do agent work yet** — only cloud models (Opus, Sonnet, GPT) use tools reliably
-2. **No browser in containers** — larvae can't visually test frontends; QA is code-review only
+2. **Headless browser only** — larvae have Chromium but no display; they use the `browser` tool for screenshots/snapshots/interaction. No MetaMask extension — use SE2 burner wallets for local testing, human tests with real wallet in Phase 2/3.
 3. **Single-turn talks** — each `talk` is stateless; larva sees SOUL + AGENTS + ETHSKILLS + your message
 4. **190KB ethskills eats context** — for very complex tasks, keep prompts focused
 5. **File sharing is manual** — `cp -r` between workspace directories
-6. **Human needed for** — ENS setup, funding deployers, final visual testing, production URL setup
+6. **Human needed for** — ENS setup, funding deployers, real-wallet QA (Phase 2/3), production URL setup
+7. **Burner wallets cover 90% of testing** — SE2 auto-connects a burner wallet on local forks, enabling full user journey testing without extensions. Only Phase 2+ (real network, real wallet) requires human interaction.
 
 ---
 
