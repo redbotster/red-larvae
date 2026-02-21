@@ -495,6 +495,10 @@ cmd_kill() {
   echo "🔪 Killing larva '${name}'..."
   docker stop "larva-${name}" 2>/dev/null || true
   rm -f "${LARVAE_DIR}/${name}.json" "${LARVAE_DIR}/${name}-config.json"
+  # Deregister from nerve cord
+  curl -sf --max-time 5 -X DELETE \
+    -H "Authorization: Bearer ${NERVE_CORD_TOKEN}" \
+    "${NERVE_CORD_URL}/larvae/${name}" >/dev/null 2>&1 || true
   echo "💀 Larva '${name}' terminated. Workspace files preserved."
 }
 
@@ -503,7 +507,12 @@ cmd_kill() {
 cmd_killall() {
   echo "🔪 Killing all larvae..."
   docker ps --filter "name=larva-" --format '{{.Names}}' | while read container; do
+    local name="${container#larva-}"
     docker stop "$container" 2>/dev/null || true
+    # Deregister from nerve cord
+    curl -sf --max-time 5 -X DELETE \
+      -H "Authorization: Bearer ${NERVE_CORD_TOKEN}" \
+      "${NERVE_CORD_URL}/larvae/${name}" >/dev/null 2>&1 || true
     echo "  💀 ${container}"
   done
   rm -f "${LARVAE_DIR}"/*.json
