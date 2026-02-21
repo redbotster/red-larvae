@@ -134,12 +134,15 @@
     "headless": true,
     "noSandbox": true,
     "executablePath": "/usr/bin/chromium",
-    "defaultProfile": "openclaw"
+    "defaultProfile": "openclaw",
+    "ssrfPolicy": {
+      "allowPrivateNetwork": true
+    }
   },
   "gateway": {
     "port": 18789,
     "mode": "local",
-    "bind": "lan",
+    "bind": "loopback",
     "auth": {
       "mode": "token",
       "token": "larva-token"

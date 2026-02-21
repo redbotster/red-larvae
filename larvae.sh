@@ -295,14 +295,14 @@ cmd_spawn() {
   env_args="$env_args -e LARVA_MODEL=${model}"
 
   # Spawn the container with gateway mode
-  # Maps host port → container internal port 18789
+  # bind=loopback so the embedded agent can use ws://127.0.0.1 (avoids security error)
+  # No port mapping needed — all agent work happens inside the container
   docker run -d --rm \
     --name "$container_name" \
     $env_args \
     --add-host=host.docker.internal:host-gateway \
     -v "${larva_workspace}:/root/workspace" \
     -v "${config_file}:/root/.openclaw/openclaw.json:ro" \
-    -p "${port}:18789" \
     larva \
     gateway --port 18789 > /dev/null
 
@@ -322,10 +322,10 @@ EOF
 
   echo ""
 
-  # Wait for gateway to be ready
+  # Wait for gateway to be ready (check from inside container since bind=loopback)
   echo -n "⏳ Waiting for gateway..."
   for i in $(seq 1 30); do
-    if curl -sf "http://localhost:${port}/health" > /dev/null 2>&1; then
+    if docker exec "$container_name" curl -sf "http://127.0.0.1:18789/health" > /dev/null 2>&1; then
       echo " ✅ Ready!"
       break
     fi
@@ -383,6 +383,7 @@ cmd_talk() {
   docker exec "$container" openclaw agent \
     --agent larva \
     --message "$message" \
+    --timeout 900 \
     --json 2>/dev/null > "$tmpfile"
 
   # Extract the text payloads cleanly
@@ -436,8 +437,8 @@ cmd_status() {
     echo "💀 Container: Stopped"
   fi
 
-  # Check gateway health
-  if curl -sf "http://localhost:${port}/health" > /dev/null 2>&1; then
+  # Check gateway health (from inside container since bind=loopback)
+  if docker exec "${container}" curl -sf "http://127.0.0.1:18789/health" > /dev/null 2>&1; then
     echo "✅ Gateway: Healthy"
   else
     echo "❌ Gateway: Not responding"

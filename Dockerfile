@@ -20,6 +20,11 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Foundry (forge, anvil, cast, chisel)
+RUN curl -L https://foundry.paradigm.xyz | bash \
+    && /root/.foundry/bin/foundryup
+ENV PATH="/root/.foundry/bin:${PATH}"
+
 # Install OpenClaw globally
 RUN npm install -g openclaw
 
@@ -27,6 +32,9 @@ RUN npm install -g openclaw
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN npm install -g playwright
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium
+
+# Install yarn (corepack)
+RUN corepack enable && corepack prepare yarn@stable --activate || true
 
 # Create workspace, config dir, and agent auth dir
 RUN mkdir -p /root/.openclaw/workspace /root/workspace \
@@ -49,8 +57,8 @@ RUN chmod +x /usr/local/bin/larva-entrypoint.sh
 # The shared volume mount point — host work persists here
 VOLUME /root/workspace
 
-# Expose gateway port for communication
-EXPOSE 18789
+# Expose gateway port + dev server ports
+EXPOSE 18789 3000 8545
 
 # Default shell
 SHELL ["/bin/bash", "-c"]
