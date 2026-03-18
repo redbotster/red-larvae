@@ -1,8 +1,10 @@
-# 🦞 clawd-larvae
+# 🦞 red-larvae
 
 Ephemeral, disposable OpenClaw agents in Docker containers. Spawn them, give them a task, talk to them, kill them — their work persists after death.
 
 Larvae are baby lobsters. They hatch, do their thing, and the results survive even after the container is gone.
+
+Forked from [clawd-larvae](https://github.com/clawdbotatg/clawd-larvae) — adapted for the [RedBotster](https://github.com/redbotster/redbotster) ecosystem.
 
 ## Quick Start
 
@@ -94,7 +96,7 @@ Use any model — cloud APIs or local Ollama:
 ./larvae.sh spawn custom --model anthropic/claude-sonnet-4-5 "Do something"
 ```
 
-## ethskills Integration 🧠
+## ethskills Integration
 
 By default, every larva **fetches the complete [ethskills.com](https://ethskills.com) knowledge base at spawn time** and bakes it into its context. This means the larva doesn't just know about Ethereum — it has internalized ethskills as core knowledge before it ever processes your first command.
 
@@ -108,7 +110,7 @@ The result: the larva uses Scaffold-ETH 2, follows the phase system, uses the co
 
 ```bash
 # Default: ethskills baked in
-./larvae.sh spawn token-dev --model opus "Build a CLAWD token hub dApp on Base"
+./larvae.sh spawn token-dev --model opus "Build a RED token dashboard dApp on Base"
 
 # Custom SOUL on top of ethskills
 ./larvae.sh spawn my-dev --model sonnet --soul roles/security-auditor.md
@@ -124,10 +126,12 @@ The result: the larva uses Scaffold-ETH 2, follows the phase system, uses the co
   --model <m>         Model shortcut or full provider/model string
   --workspace <dir>   Custom workspace directory
   --soul <file>       Custom SOUL.md for personality/role
+  --profile <p>       Agent profile (builder, auditor, qa, frontend, all)
   --no-ethskills      Skip baking ethskills (for non-ETH tasks)
 
 ./larvae.sh list
 ./larvae.sh talk <name> "message"
+./larvae.sh watch <name> "message"
 ./larvae.sh status <name>
 ./larvae.sh logs <name> [lines]
 ./larvae.sh kill <name>
@@ -147,11 +151,11 @@ The result: the larva uses Scaffold-ETH 2, follows the phase system, uses the co
 Point a larva at any directory on your machine:
 
 ```bash
-# Work on an existing project
-./larvae.sh spawn reviewer --model sonnet --workspace ~/projects/my-app "Review the codebase and suggest improvements"
+# Work on the RedBotster project directly
+./larvae.sh spawn reviewer --model sonnet --workspace ~/RedBotster "Review the fee-claim-and-buy.sh script for bugs"
 
-# The larva can read/write files in ~/projects/my-app
-./larvae.sh talk reviewer "What did you find? Any security issues?"
+# The larva can read/write files in ~/RedBotster
+./larvae.sh talk reviewer "What did you find? Any issues with the swap logic?"
 ```
 
 ## Multi-Larva Workflows
@@ -160,8 +164,8 @@ Spawn multiple larvae for parallel or collaborative work:
 
 ```bash
 # Architect designs, coder implements, reviewer checks
-./larvae.sh spawn architect --model opus "Design a real-time chat system architecture"
-./larvae.sh spawn coder --model sonnet "Implement the WebSocket server"
+./larvae.sh spawn architect --model opus "Design a DeFi treasury dashboard"
+./larvae.sh spawn coder --model sonnet "Implement the Uniswap integration"
 ./larvae.sh spawn reviewer --model sonnet "Review the code for security issues"
 
 # Check on everyone
@@ -190,6 +194,12 @@ The parent runs `larvae.sh` commands via shell exec and relays the results back 
 - **Storage**: Volume mount from `shared-workspace/<name>/` → `/root/workspace`
 - **Communication**: `docker exec openclaw agent --local` with session persistence
 - **Isolation**: Each container is fully isolated with its own filesystem, processes, and network
+
+## Related
+
+- [RedBotster](https://github.com/redbotster/redbotster) — AI DeFi treasury bot on Base
+- [clawd-larvae](https://github.com/clawdbotatg/clawd-larvae) — Original upstream project
+- [OpenClaw](https://openclaw.ai) — AI agent runtime
 
 ## License
 

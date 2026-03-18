@@ -1,5 +1,5 @@
 #!/bin/bash
-# 🦞 Larvae Pipeline — Automated PLAYBOOK Runner
+# 🦞 Red Larvae Pipeline — Automated PLAYBOOK Runner (RedBotster fork)
 #
 # Runs through the PLAYBOOK steps automatically, spawning larvae for each step,
 # waiting for completion, checking results, and proceeding to the next step.
@@ -8,9 +8,9 @@
 #   ./pipeline.sh <project-name> [--from <step>] [--to <step>] [--model <model>] [--plan <plan-file>]
 #
 # Examples:
-#   ./pipeline.sh clawd-vesting --plan shared-workspace/BUILD-PLAN.md
-#   ./pipeline.sh clawd-vesting --from 5 --to 7     # Frontend build through E2E
-#   ./pipeline.sh clawd-vesting --from 2             # Start from contract build
+#   ./pipeline.sh red-dashboard --plan shared-workspace/BUILD-PLAN.md
+#   ./pipeline.sh red-dashboard --from 5 --to 7     # Frontend build through E2E
+#   ./pipeline.sh red-dashboard --from 2             # Start from contract build
 #
 # Steps:
 #   2: Build contract     (--profile builder)

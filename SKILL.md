@@ -1,9 +1,9 @@
 ---
-name: clawd-larvae
+name: red-larvae
 description: Spawn and manage ephemeral OpenClaw Docker agents ("larvae"). Use when you need to run isolated coding tasks, spin up disposable AI workers, orchestrate parallel agents, or delegate work to containerized OpenClaw instances. Triggers on requests like "spawn a larva", "spin up a container to do X", "run that in a larvae", or multi-agent Docker workflows.
 ---
 
-# clawd-larvae
+# red-larvae
 
 Ephemeral OpenClaw agents in Docker containers. Spawn, talk, kill — work persists.
 

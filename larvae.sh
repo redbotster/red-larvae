@@ -1,5 +1,5 @@
 #!/bin/bash
-# 🦞 Larvae — Ephemeral OpenClaw orchestrator
+# 🦞 Red Larvae — Ephemeral OpenClaw orchestrator (RedBotster fork)
 #
 # Usage:
 #   ./larvae.sh spawn <name> [--model <model>] [--profile <profile>] [--soul <file>] [--identity "text"] [--workspace <dir>] "initial task"
@@ -37,8 +37,9 @@ LARVA_TOKEN="larva-token"
 BASE_PORT=28700
 
 # Nerve cord config — larvae auto-register and heartbeat
-NERVE_CORD_URL="${NERVE_CORD_URL:-http://clawds-Mac-mini.local:9999}"
-NERVE_CORD_TOKEN="${NERVE_CORD_TOKEN:-6ce47b8375e3fe92fbd54c00ba5fb37ab83c4f6fc1486328a451d642c050d3b9}"
+# Override these with your own nerve cord server if you have one
+NERVE_CORD_URL="${NERVE_CORD_URL:-}"
+NERVE_CORD_TOKEN="${NERVE_CORD_TOKEN:-}"
 
 mkdir -p "$LARVAE_DIR" "$DEFAULT_WORKSPACE"
 
@@ -603,7 +604,7 @@ case "${1:-help}" in
   kill)    shift; cmd_kill "$@" ;;
   killall) cmd_killall ;;
   help|*)
-    echo "🦞 Larvae — Ephemeral OpenClaw Orchestrator"
+    echo "🦞 Red Larvae — Ephemeral OpenClaw Orchestrator (RedBotster)"
     echo ""
     echo "Commands:"
     echo "  spawn <name> [options] \"task\"    Hatch a larva"
@@ -628,7 +629,7 @@ case "${1:-help}" in
     echo "           Use --no-ethskills for non-Ethereum tasks."
     echo ""
     echo "Examples:"
-    echo "  ./larvae.sh spawn token-dev --model opus \"Build a CLAWD token on Base\""
+    echo "  ./larvae.sh spawn token-dev --model opus \"Build a RED token dashboard on Base\""
     echo "  ./larvae.sh spawn my-fe --model sonnet --soul roles/ux-expert.md"
     echo "  ./larvae.sh spawn scraper --model gpt --no-ethskills \"Scrape HN front page\""
     echo "  ./larvae.sh talk token-dev \"How's it going? Show me what you have.\""

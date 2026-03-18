@@ -1,5 +1,5 @@
 #!/bin/bash
-# Larva entrypoint — starts nerve cord heartbeat, then runs OpenClaw gateway
+# Red Larva entrypoint — starts nerve cord heartbeat, then runs OpenClaw gateway
 
 # ── Nerve Cord Registration & Heartbeat ──
 # Env vars (set by larvae.sh at spawn time):
